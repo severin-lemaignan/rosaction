@@ -2,13 +2,6 @@
 
 import sys
 import rospy
-import genpy
-import roslib
-import rostopic
-import rosgraph
-import actionlib
-from actionlib_msgs.msg import GoalStatus
-import yaml
 
 class DynamicAction(object):
     def __init__(self, name):
@@ -21,6 +14,9 @@ class DynamicAction(object):
         self.result   = self.load_submsg('Result')
 
     def load_submsg(self, subname):
+
+        import roslib
+
         msgclass = roslib.message.get_message_class(self.name + subname)
         if msgclass is None:
             print('Could not load message for: %s'%(self.name+subname))
@@ -28,11 +24,21 @@ class DynamicAction(object):
         return msgclass
 
 
-def onprogress(evt):
-    print("\x1b[1F%s" % evt)
 
-
+#########################################################################
+#########################################################################
 def call(action_name, params):
+
+    import actionlib
+    from actionlib_msgs.msg import GoalStatus
+    import rostopic
+    import yaml
+    import genpy
+
+    # callback for the feedback channel
+    def onprogress(evt):
+        print("%s" % evt)
+
 
     # get action type from topic
     topic_type = rostopic._get_topic_type("%s/goal"%action_name)[0]
@@ -86,7 +92,6 @@ def call(action_name, params):
 
     # Waits for the server to finish performing the action
     client.wait_for_result()
-    import pdb;pdb.set_trace()
 
     # Checks if the goal was achieved
     if client.get_state() == GoalStatus.SUCCEEDED:
@@ -103,7 +108,12 @@ def call(action_name, params):
         print("Action failed: %s" % client.get_goal_status_text())
         sys.exit(1)
 
+
+#########################################################################
+#########################################################################
 def actionlist():
+    import rosgraph
+
     master = rosgraph.Master('/rosaction')
     try:
         state = master.getSystemState()
@@ -122,13 +132,20 @@ def actionlist():
     print('\n'.join(["%s"%t for t in actions]))
 
 
+#########################################################################
+#########################################################################
+def usage():
+    print("Usage: rosaction [call|list] [args...]")
+
 
 if __name__ == "__main__":
 
-    rospy.init_node("rosaction", anonymous = True)
+    if len(sys.argv) == 1:
+        usage()
+        sys.exit(2)
 
     mode = sys.argv[1]
-
+    rospy.init_node("rosaction", anonymous = True)
     if mode == "call":
         import argparse
         parser = argparse.ArgumentParser()
@@ -140,7 +157,7 @@ if __name__ == "__main__":
     elif mode == "list":
         actionlist()
     else:
-        print("Usage: rosaction [call|list] [args...]")
+        usage()
         sys.exit(2)
 
 
